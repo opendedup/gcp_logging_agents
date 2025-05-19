@@ -8,7 +8,7 @@ This system is designed to assist with auditing Google Cloud Platform (GCP) reso
 
 ## System Diagram
 
-![System Architecture Diagram](arch_diagram.png)
+!(arch_diagram.png)
 
 ## Components
 
