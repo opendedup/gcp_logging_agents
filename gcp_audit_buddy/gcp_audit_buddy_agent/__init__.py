@@ -5,6 +5,8 @@
 # adk talk --agent_path gcp_audit_buddy_agent.root_agent
 # or select it in the ADK Web UI via the path gcp_audit_buddy_agent.root_agent
 
-from .root_agent_pkg.agent import root_agent
+import os
 
-__all__ = ["root_agent"]
+from . import agent
+
+__all__ = ["agent"]

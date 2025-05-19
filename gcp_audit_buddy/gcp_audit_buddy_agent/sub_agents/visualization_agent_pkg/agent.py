@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
-from google_adk.agents import Agent
-from google_adk.tools import FunctionTool
+from google.adk.agents import Agent
+from google.adk.tools import FunctionTool
 
 # Import the prompt and tool function from within the same package
 from .prompts import VISUALIZATION_AGENT_PROMPT
@@ -16,14 +16,14 @@ GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-001")
 # Create a FunctionTool from the create_report_visualization function
 visualization_tool = FunctionTool(
     func=create_report_visualization,
-    name="create_report_visualization", 
-    description="Generates a data visualization (SVG or PNG) from a JSON string and returns it as an image Part."
 )
 
 # Define the Visualization Agent
 visualization_agent = Agent(
     model=GEMINI_MODEL_NAME,
-    system_prompt=VISUALIZATION_AGENT_PROMPT,
+    name="visualization_agent",
+    description="A specialized agent that generates visualizations (SVG or PNG images) from JSON data. It uses the create_report_visualization tool to create charts like bar, line, pie, etc.",
+    instruction=VISUALIZATION_AGENT_PROMPT,
     tools=[visualization_tool],
     # The visualization agent's output (the Part object from the tool)
     # should be returned directly without further LLM processing.

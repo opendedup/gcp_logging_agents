@@ -1,12 +1,13 @@
 [tool.poetry]
-name = "gcp-audit-buddy"
+name = "gcp_audit_buddy_agent"
 version = "0.1.0"
 description = "GCP Auditing Assistant using Agent Development Kit"
-authors = ["Your Name <you@example.com>"] # Please update this with your details
+authors = ["Sam Silverberg <sam.silverberg@gmail.com>"] # Please update this with your details
 readme = "README.md"
-packages = [{include = "gcp_audit_buddy_agent", from = "."}]
+package-mode = true
 
 [tool.poetry.dependencies]
+python = "^3.11"
 google-adk = "*"
 google-cloud-aiplatform = "*"
 google-genai = "*"

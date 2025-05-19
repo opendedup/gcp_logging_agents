@@ -5,8 +5,8 @@ matplotlib.use('Agg')  # Use a non-interactive backend for running in a server e
 import matplotlib.pyplot as plt
 import seaborn as sns
 import io
-from google.generativeai.types import Part, Blob
-from typing import Literal
+from google.genai.types import Part, Blob
+from typing import Literal, Optional
 
 def create_report_visualization(
     data_json_string: str, 
@@ -15,7 +15,7 @@ def create_report_visualization(
     y_column: str, 
     title: str = "Generated Chart", 
     report_format: Literal["svg", "png"] = "svg",
-    hue_column: str | None = None # Optional column for color encoding (e.g., in bar or scatter plots)
+    hue_column: Optional[str] = None # Optional column for color encoding (e.g., in bar or scatter plots)
 ) -> Part:
     """
     Creates a data visualization from a JSON string and returns it as a Google GenAI Part.

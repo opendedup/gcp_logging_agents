@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
-from google_adk.agents import Agent
-from google_adk.tools import FunctionTool
+from google.adk.agents import Agent
+from google.adk.tools import FunctionTool
 
 # Import the prompt and tool function from within the same package
 from .prompts import AUDIT_LOG_AGENT_PROMPT
@@ -17,15 +17,15 @@ GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-001")
 # The ADK will automatically infer the schema for this tool from the function's type hints and docstring.
 query_audit_logs_tool = FunctionTool(
     func=query_gcp_audit_logs,
-    name="query_gcp_audit_logs", # Explicitly naming, though ADK can infer
-    description="Executes a BigQuery SQL query to retrieve GCP audit logs and returns the results as a JSON string."
 )
 
 # Define the BQ Audit Log Agent
 # Using "gemini-1.5-pro-001" as planned. Ensure this model is available in your Vertex AI project and location.
 audit_log_agent = Agent(
     model=GEMINI_MODEL_NAME,
-    system_prompt=AUDIT_LOG_AGENT_PROMPT,
+    name="audit_log_agent",
+    description="A specialized agent that constructs and executes BigQuery SQL queries to retrieve GCP audit logs based on user requests. It uses the query_gcp_audit_logs tool.",
+    instruction=AUDIT_LOG_AGENT_PROMPT,
     tools=[query_audit_logs_tool]
 )
 

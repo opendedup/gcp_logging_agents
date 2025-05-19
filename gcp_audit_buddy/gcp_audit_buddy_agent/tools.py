@@ -62,28 +62,3 @@ def call_mcp_time_service(offset_hours: int = 0) -> Dict[str, Union[str, int, Di
         print(f"Error: {error_msg}")
         return {"error": "MCP Time Service call failed", "details": error_msg}
 
-if __name__ == '__main__':
-    print("Testing MCP Time Service call...")
-    
-    if not MCP_TIME_SERVICE_BASE_URL:
-        print("MCP_TIME_SERVICE_URL not set. Please set it in your .env file (e.g., MCP_TIME_SERVICE_URL=http://localhost:3001/time) and ensure the service is running.")
-    else:
-        print(f"Using MCP Time Service URL: {MCP_TIME_SERVICE_BASE_URL}")
-        
-        # Test with default offset
-        print("\nTesting with offset_hours = 0 (default):")
-        # result_default = call_mcp_time_service()
-        # print(result_default)
-
-        # Test with a positive offset
-        print("\nTesting with offset_hours = 2:")
-        # result_positive_offset = call_mcp_time_service(offset_hours=2)
-        # print(result_positive_offset)
-
-        # Test with a negative offset
-        print("\nTesting with offset_hours = -5:")
-        # result_negative_offset = call_mcp_time_service(offset_hours=-5)
-        # print(result_negative_offset)
-        
-        print("\nTo run these tests, uncomment the call_mcp_time_service() lines.")
-        print("Ensure the MCP Time Service (Node.js server) is running and MCP_TIME_SERVICE_URL is correctly set in .env.") 

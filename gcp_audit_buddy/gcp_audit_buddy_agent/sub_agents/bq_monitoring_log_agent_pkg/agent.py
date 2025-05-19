@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
-from google_adk.agents import Agent
-from google_adk.tools import FunctionTool
+from google.adk.agents import Agent
+from google.adk.tools import FunctionTool
 
 # Import the prompt and tool functions from within the same package
 from .prompts import MONITORING_LOG_AGENT_PROMPT
@@ -16,20 +16,18 @@ GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-pro-001")
 # Create FunctionTools for the monitoring agent
 list_tables_tool = FunctionTool(
     func=list_monitoring_log_tables,
-    name="list_monitoring_log_tables",
-    description="Lists all available tables in the configured GCP monitoring logs BigQuery dataset."
 )
 
 query_monitoring_logs_tool = FunctionTool(
     func=query_gcp_monitoring_logs,
-    name="query_gcp_monitoring_logs",
-    description="Executes a BigQuery SQL query to retrieve GCP monitoring logs and returns the results as a JSON string."
 )
 
 # Define the BQ Monitoring Log Agent
 monitoring_log_agent = Agent(
     model=GEMINI_MODEL_NAME,
-    system_prompt=MONITORING_LOG_AGENT_PROMPT,
+    name="monitoring_log_agent",
+    description="A specialized agent for GCP monitoring logs. It can list available monitoring log tables in BigQuery and execute SQL queries against them using the list_monitoring_log_tables and query_gcp_monitoring_logs tools respectively.",
+    instruction=MONITORING_LOG_AGENT_PROMPT,
     tools=[
         list_tables_tool,
         query_monitoring_logs_tool

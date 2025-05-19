@@ -61,7 +61,7 @@ if __name__ == '__main__':
     SELECT
         protopayload_auditlog.methodName,
         protopayload_auditlog.resourceName,
-        principalEmail,
+        protopayload_auditlog.authenticationInfo.principalEmail AS principalEmail,
         timestamp
     FROM
         `{os.getenv("GOOGLE_CLOUD_PROJECT", "your-project-id")}.{os.getenv("GCP_AUDIT_LOGS_DATASET", "your_dataset")}.cloudaudit_googleapis_com_activity`
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     SELECT
         protopayload_auditlog.methodName,
         protopayload_auditlog.resourceName,
-        principalEmail,
+        protopayload_auditlog.authenticationInfo.principalEmail AS principalEmail,
         timestamp
     FROM
         `{os.getenv("GOOGLE_CLOUD_PROJECT", "your-project-id")}.{os.getenv("GCP_AUDIT_LOGS_DATASET", "your_dataset")}.cloudaudit_googleapis_com_data_access`
@@ -85,6 +85,22 @@ if __name__ == '__main__':
     ORDER BY
         timestamp DESC
     LIMIT 10
+    """
+
+    test_query_system_event = f"""
+    SELECT
+        timestamp, # Or the main timestamp field in system_event
+        protopayload_auditlog.serviceName, # Example field
+        protopayload_auditlog.methodName,  # Example field
+        protopayload_auditlog.resourceName # Example field
+        # Add other relevant fields from system_event schema here
+    FROM
+        `{os.getenv("GOOGLE_CLOUD_PROJECT", "your-project-id")}.{os.getenv("GCP_AUDIT_LOGS_DATASET", "your_dataset")}.cloudaudit_googleapis_com_system_event`
+    WHERE
+        protopayload_auditlog.serviceName = 'k8s.io' # Example filter, adjust as needed
+    ORDER BY
+        timestamp DESC # Or the main timestamp field
+    LIMIT 5
     """
     
     print("Testing activity log query...")
@@ -97,6 +113,10 @@ if __name__ == '__main__':
     # print("\nTesting data access log query...")
     # results_data_access = query_gcp_audit_logs(test_query_data_access)
     # print(results_data_access)
+
+    print("\nTesting system event log query...")
+    # results_system_event = query_gcp_audit_logs(test_query_system_event)
+    # print(results_system_event)
     
     print("\nTo fully test, uncomment the dotenv lines, ensure your .env is configured,")
     print("and that the specified tables exist and you have permissions.")
