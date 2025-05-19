@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "gcp-audit-buddy"
+version = "0.1.0"
+description = "GCP Auditing Assistant using Agent Development Kit"
+authors = ["Your Name <you@example.com>"] # Please update this with your details
+readme = "README.md"
+packages = [{include = "gcp_audit_buddy_agent", from = "."}]
+
+[tool.poetry.dependencies]
+google-adk = "*"
+google-cloud-aiplatform = "*"
+google-genai = "*"
+python-dotenv = "*"
+google-cloud-bigquery = "*"
+matplotlib = "*"
+pandas = "*"
+seaborn = "*"
+svglib = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api" 
