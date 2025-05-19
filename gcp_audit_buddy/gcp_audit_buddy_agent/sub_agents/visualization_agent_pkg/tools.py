@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 from google.genai.types import Part, Blob
+import base64
 from typing import Literal, Optional
 
 def create_report_visualization(
@@ -16,9 +17,10 @@ def create_report_visualization(
     title: str = "Generated Chart", 
     report_format: Literal["svg", "png"] = "svg",
     hue_column: Optional[str] = None # Optional column for color encoding (e.g., in bar or scatter plots)
-) -> Part:
+) -> dict:
     """
-    Creates a data visualization from a JSON string and returns it as a Google GenAI Part.
+    Creates a data visualization from a JSON string and returns it as a dictionary
+    containing base64 encoded image data and mime type.
 
     Args:
         data_json_string: A JSON string representing a list of records (e.g., from a BigQuery query).
@@ -30,31 +32,32 @@ def create_report_visualization(
         hue_column: Optional. The name of the column to use for color encoding (hue) in applicable charts.
 
     Returns:
-        A google.generativeai.types.Part object containing the image data, or a Part with an error message.
+        A dictionary with "mime_type", "image_data_base64", and "filename_suggestion" on success,
+        or a dictionary with "error" on failure.
     """
     try:
         try:
             data = json.loads(data_json_string)
             if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
                 if isinstance(data, dict) and "message" in data and "Query returned no results." in data["message"]:
-                     return Part(text=f"Cannot generate chart: {data['message']}")
+                     return {"error": f"Cannot generate chart: {data['message']}"}
                 if isinstance(data, dict) and "error" in data:
-                     return Part(text=f"Cannot generate chart due to upstream error: {data['error']}")
+                     return {"error": f"Cannot generate chart due to upstream error: {data['error']}"}
                 raise ValueError("Data must be a JSON string representing a list of dictionaries.")
             if not data:
-                 return Part(text="Cannot generate chart: Input data is empty.")
+                 return {"error": "Cannot generate chart: Input data is empty."}
             df = pd.DataFrame(data)
         except json.JSONDecodeError:
-            return Part(text="Error: Invalid JSON data provided.")
+            return {"error": "Error: Invalid JSON data provided."}
         except ValueError as ve:
-            return Part(text=f"Error processing data: {str(ve)}")
+            return {"error": f"Error processing data: {str(ve)}"}
 
         if x_column not in df.columns:
-            return Part(text=f"Error: X-axis column '{x_column}' not found in the data. Available columns: {list(df.columns)}")
+            return {"error": f"Error: X-axis column '{x_column}' not found in the data. Available columns: {list(df.columns)}"}
         if y_column not in df.columns and chart_type != 'histogram': # Histogram only needs one main column for values
-            return Part(text=f"Error: Y-axis column '{y_column}' not found in the data. Available columns: {list(df.columns)}")
+            return {"error": f"Error: Y-axis column '{y_column}' not found in the data. Available columns: {list(df.columns)}"}
         if hue_column and hue_column not in df.columns:
-            return Part(text=f"Error: Hue column '{hue_column}' not found in the data. Available columns: {list(df.columns)}")
+            return {"error": f"Error: Hue column '{hue_column}' not found in the data. Available columns: {list(df.columns)}"}
 
         plt.figure(figsize=(10, 6))
         sns.set_theme(style="whitegrid")
@@ -68,7 +71,7 @@ def create_report_visualization(
                     df[x_column] = pd.to_datetime(df[x_column]) # Ensure it's datetime if it looks like it
                 # For other types, keep as is, Seaborn might handle it or it's categorical
             except Exception as e:
-                return Part(text=f"Error converting x-column '{x_column}' for plotting: {e}")
+                return {"error": f"Error converting x-column '{x_column}' for plotting: {e}"}
         
         try:
             if pd.api.types.is_numeric_dtype(df[y_column]):
@@ -76,7 +79,7 @@ def create_report_visualization(
             else:
                 df[y_column] = pd.to_numeric(df[y_column])
         except Exception as e:
-            return Part(text=f"Error converting y-column '{y_column}' to numeric for plotting: {e}")
+            return {"error": f"Error converting y-column '{y_column}' to numeric for plotting: {e}"}
 
         if chart_type == "bar":
             sns.barplot(x=df[x_column], y=df[y_column], hue=df[hue_column] if hue_column else None)
@@ -86,10 +89,10 @@ def create_report_visualization(
             plt.xticks(rotation=45, ha='right')
         elif chart_type == "pie":
             if not pd.api.types.is_numeric_dtype(df[y_column]):
-                 return Part(text=f"Error: For pie chart, y-column '{y_column}' must be numeric.")
+                 return {"error": f"Error: For pie chart, y-column '{y_column}' must be numeric."}
             # Ensure we don't have too many slices for a pie chart
             if len(df[x_column].unique()) > 15:
-                 return Part(text=f"Error: Too many unique values in x-column '{x_column}' ({len(df[x_column].unique())}) for a pie chart. Please choose a different chart type or filter data.")
+                 return {"error": f"Error: Too many unique values in x-column '{x_column}' ({len(df[x_column].unique())}) for a pie chart. Please choose a different chart type or filter data."}
             plt.pie(df[y_column], labels=df[x_column], autopct='%1.1f%%', startangle=90)
             plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
         elif chart_type == "scatter":
@@ -100,7 +103,7 @@ def create_report_visualization(
             # x_column might not be explicitly used by sns.histplot if y_column is specified for values.
             sns.histplot(data=df, x=y_column, hue=hue_column if hue_column else None, kde=True)
         else:
-            return Part(text=f"Error: Unsupported chart type '{chart_type}'. Supported types: bar, line, pie, scatter, histogram.")
+            return {"error": f"Error: Unsupported chart type '{chart_type}'. Supported types: bar, line, pie, scatter, histogram."}
 
         plt.title(title)
         plt.tight_layout() # Adjust layout to prevent labels from being cut off
@@ -114,18 +117,25 @@ def create_report_visualization(
             mime_type = "image/png"
         else:
             plt.close()
-            return Part(text=f"Error: Unsupported report format '{report_format}'. Supported formats: svg, png.")
+            return {"error": f"Error: Unsupported report format '{report_format}'. Supported formats: svg, png."}
         
         img_buffer.seek(0)
         image_bytes = img_buffer.getvalue()
         plt.close() # Close the plot to free up memory
 
-        return Part(inline_data=Blob(mime_type=mime_type, data=image_bytes))
+        image_data_base64 = base64.b64encode(image_bytes).decode('utf-8')
+        filename_suggestion = f"{title.replace(' ', '_').lower().replace('[^a-z0-9_]', '')}.{report_format}"
+
+        return {
+            "mime_type": mime_type,
+            "image_data_base64": image_data_base64,
+            "filename_suggestion": filename_suggestion
+        }
 
     except Exception as e:
         # Ensure plot is closed if an unexpected error occurs mid-process
         plt.close()
-        return Part(text=f"An unexpected error occurred while creating the visualization: {str(e)}")
+        return {"error": f"An unexpected error occurred while creating the visualization: {str(e)}"}
 
 if __name__ == '__main__':
     # Example usage:
@@ -142,48 +152,47 @@ if __name__ == '__main__':
 
     # Test Bar Chart
     print("\nTesting Bar Chart (SVG)...")
-    # bar_chart_part = create_report_visualization(sample_json_string, "bar", "category", "value", "Sample Bar Chart", "svg", hue_column="group")
-    # if bar_chart_part.text:
-    #     print(f"Error: {bar_chart_part.text}")
-    # elif bar_chart_part.inline_data:
-    #     print(f"Bar chart generated successfully. MimeType: {bar_chart_part.inline_data.mime_type}, Size: {len(bar_chart_part.inline_data.data)} bytes")
-    #     # with open("bar_chart_test.svg", "wb") as f:
-    #     #     f.write(bar_chart_part.inline_data.data)
-    #     # print("Saved to bar_chart_test.svg")
+    bar_chart_result = create_report_visualization(sample_json_string, "bar", "category", "value", "Sample Bar Chart", "svg", hue_column="group")
+    if "error" in bar_chart_result:
+        print(f"Error: {bar_chart_result['error']}")
+    else:
+        print(f"Bar chart generated successfully. MimeType: {bar_chart_result['mime_type']}, Base64 Length: {len(bar_chart_result['image_data_base64'])}, Filename: {bar_chart_result['filename_suggestion']}")
+        # with open(bar_chart_result['filename_suggestion'], "wb") as f:
+        #     f.write(base64.b64decode(bar_chart_result['image_data_base64']))
+        # print(f"Saved to {bar_chart_result['filename_suggestion']}")
 
     # Test Pie Chart
     print("\nTesting Pie Chart (PNG)...")
-    # To make pie chart meaningful, let's sum values by category first or use appropriate data
-    # df_sample = pd.DataFrame(sample_data_list)
-    # pie_data = df_sample.groupby('category')['value'].sum().reset_index()
-    # pie_json_string = pie_data.to_json(orient='records')
-    # pie_chart_part = create_report_visualization(pie_json_string, "pie", "category", "value", "Sample Pie Chart", "png")
-    # if pie_chart_part.text:
-    #     print(f"Error: {pie_chart_part.text}")
-    # elif pie_chart_part.inline_data:
-    #     print(f"Pie chart generated successfully. MimeType: {pie_chart_part.inline_data.mime_type}, Size: {len(pie_chart_part.inline_data.data)} bytes")
-        # with open("pie_chart_test.png", "wb") as f:
-        #     f.write(pie_chart_part.inline_data.data)
-        # print("Saved to pie_chart_test.png")
+    df_sample = pd.DataFrame(sample_data_list)
+    pie_data = df_sample.groupby('category')['value'].sum().reset_index()
+    pie_json_string = pie_data.to_json(orient='records')
+    pie_chart_result = create_report_visualization(pie_json_string, "pie", "category", "value", "Sample Pie Chart", "png")
+    if "error" in pie_chart_result:
+        print(f"Error: {pie_chart_result['error']}")
+    else:
+        print(f"Pie chart generated successfully. MimeType: {pie_chart_result['mime_type']}, Base64 Length: {len(pie_chart_result['image_data_base64'])}, Filename: {pie_chart_result['filename_suggestion']}")
+        # with open(pie_chart_result['filename_suggestion'], "wb") as f:
+        #     f.write(base64.b64decode(pie_chart_result['image_data_base64']))
+        # print(f"Saved to {pie_chart_result['filename_suggestion']}")
 
     # Test with non-existent column
     print("\nTesting Non-Existent Column...")
-    # error_part = create_report_visualization(sample_json_string, "bar", "non_existent_col", "value")
-    # if error_part.text:
-    #     print(f"Caught expected error: {error_part.text}")
+    error_result_col = create_report_visualization(sample_json_string, "bar", "non_existent_col", "value")
+    if "error" in error_result_col:
+        print(f"Caught expected error: {error_result_col['error']}")
 
     # Test with empty data
     print("\nTesting Empty Data...")
-    # empty_data_part = create_report_visualization("[]", "bar", "category", "value")
-    # if empty_data_part.text:
-    #     print(f"Caught expected error for empty data: {empty_data_part.text}")
+    empty_data_result = create_report_visualization("[]", "bar", "category", "value")
+    if "error" in empty_data_result:
+        print(f"Caught expected error for empty data: {empty_data_result['error']}")
 
     # Test with no results data
     print("\nTesting No Results Data...")
-    # no_results_data = json.dumps({"message": "Query returned no results."})
-    # no_results_part = create_report_visualization(no_results_data, "bar", "category", "value")
-    # if no_results_part.text:
-    #     print(f"Caught expected error for no results data: {no_results_part.text}")
+    no_results_data = json.dumps({"message": "Query returned no results."})
+    no_results_result = create_report_visualization(no_results_data, "bar", "category", "value")
+    if "error" in no_results_result:
+        print(f"Caught expected error for no results data: {no_results_result['error']}")
 
     print("\nTo fully test, uncomment example calls and optionally save the output to files.")
     print("Ensure matplotlib, seaborn, and pandas are installed.") 
